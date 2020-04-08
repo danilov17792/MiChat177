@@ -18,10 +18,7 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.EOFException;
-import java.io.IOException;
+import java.io.*;
 import java.net.Socket;
 import java.net.URL;
 import java.util.ResourceBundle;
@@ -49,8 +46,10 @@ public class Controller implements Initializable {
     private final int PORT = 19089;
     private final String TITLE = "MiChat";
 
+    private final int RECOVERABLE_MESSAGE_QUANTITY = 100;
     private boolean authenticated;
     private String nickname;
+    private File messageHistoryFile;
 
     private Stage regStage;
 
@@ -107,8 +106,9 @@ public class Controller implements Initializable {
                         }
                         textArea.appendText(str + "\n");
                     }
-
+                    history();
                     setTitle(TITLE + ": " + nickname);
+
 
                     // цикл работы
                     while (true) {
@@ -219,5 +219,48 @@ public class Controller implements Initializable {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+    public void history (){
+        String text= textArea.getText();
+        int lineNumber = 0;
+
+        if (setMessageHistoryFile().exists()) {
+            try (FileReader fr = new FileReader(messageHistoryFile)) {
+                LineNumberReader lnr = new LineNumberReader(fr);
+                while (lnr.readLine() != null) {
+                    lineNumber++;
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            try (BufferedReader br = new BufferedReader(new FileReader(messageHistoryFile))) {
+                for (int i = 0; i < lineNumber; i++) {
+                    String line = br.readLine();
+                    if (i >= lineNumber - RECOVERABLE_MESSAGE_QUANTITY) {
+                        textArea.appendText(line + "\n");
+                    }
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        } else {
+            try {
+                messageHistoryFile.createNewFile();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        try {
+            FileWriter pw = new FileWriter (messageHistoryFile, true);
+            pw.append(text + "\n");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private File setMessageHistoryFile() {
+        messageHistoryFile = new File("client/data/history_" + nickname + ".txt");
+        return messageHistoryFile;
     }
 }
